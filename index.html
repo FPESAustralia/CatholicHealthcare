@@ -249,6 +249,12 @@ thead th[data-col]:hover{background:#F8FAFC}
           <div id="work-cap-bars"></div>
         </div>
       </div>
+      <div class="grid-1">
+        <div class="card">
+          <div class="card-title">Claim Conversion by Referral Type</div>
+          <div id="claim-by-reftype"></div>
+        </div>
+      </div>
     </div>
 
     <!-- INJURIES TAB -->
@@ -636,12 +642,69 @@ function renderPhysioTime(){
   makeChart('ch-physio-time',barCfg(labels,data,labels.map((_,i)=>['#1A6B9A','#2E7D52','#D97706','#EA580C','#DC2626'][i])));
 }
 
+function renderClaimByRefType(){
+  const types=['TRIAGE','REFERRAL'];
+  const rows=types.map(type=>{
+    const group=filtered.filter(r=>r.referral_type===type);
+    const total=group.length;
+    const claimed=group.filter(r=>r.claimed).length;
+    const pct=total?Math.round(claimed/total*100):0;
+    return {type,total,claimed,pct};
+  });
+  // Overall row
+  const allTotal=filtered.length;
+  const allClaimed=filtered.filter(r=>r.claimed).length;
+  const allPct=allTotal?Math.round(allClaimed/allTotal*100):0;
+
+  const maxPct=Math.max(...rows.map(r=>r.pct),allPct,1);
+
+  const rowHtml=rows.map(r=>`
+    <tr>
+      <td><span class="badge ${r.type==='TRIAGE'?'badge-triage':'badge-referral'}">${r.type==='TRIAGE'?'Triage':'Referral'}</span></td>
+      <td style="text-align:right">${r.total}</td>
+      <td style="text-align:right">${r.claimed}</td>
+      <td style="min-width:160px;padding-right:8px">
+        <div class="prog-track" style="height:10px">
+          <div class="prog-fill" style="width:${Math.round(r.pct/maxPct*100)}%;background:${r.type==='TRIAGE'?'#0D1B2A':'#1A6B9A'}"></div>
+        </div>
+      </td>
+      <td style="text-align:right;font-weight:600;color:${r.pct>=20?'#DC2626':r.pct>=10?'#D97706':'#166534'}">${r.pct}%</td>
+    </tr>`).join('');
+
+  document.getElementById('claim-by-reftype').innerHTML=`
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Referral Type</th>
+          <th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Total</th>
+          <th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Claimed</th>
+          <th style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px"></th>
+          <th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Conversion</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowHtml}
+        <tr style="border-top:2px solid var(--border);background:#F8FAFC">
+          <td style="padding:8px 12px;font-weight:600;color:var(--navy)">All Referrals</td>
+          <td style="text-align:right;padding:8px 12px;font-weight:600">${allTotal}</td>
+          <td style="text-align:right;padding:8px 12px;font-weight:600">${allClaimed}</td>
+          <td style="min-width:160px;padding:8px 8px 8px 12px">
+            <div class="prog-track" style="height:10px">
+              <div class="prog-fill" style="width:${Math.round(allPct/maxPct*100)}%;background:#475569"></div>
+            </div>
+          </td>
+          <td style="text-align:right;padding:8px 12px;font-weight:700;color:var(--navy)">${allPct}%</td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
 function renderWorkCap(){
   const m=count(filtered,'work_capacity');
   delete m[''];
   const entries=sortedEntries(m);
   const max=entries[0]?entries[0][1]:1;
-  const total=filtered.length;
+  const total=entries.reduce((a,[,n])=>a+n,0);
   const colors=['#1A6B9A','#2E7D52','#7C3AED','#D97706','#DC2626'];
   const html=entries.map(([cap,n],i)=>`
     <div class="prog-row">
@@ -1028,6 +1091,7 @@ function renderTab(){
     renderTopSites();
     renderPhysioTime();
     renderWorkCap();
+    renderClaimByRefType();
   } else if(activeTab==='injuries'){
     renderInjuryKPIs();
     renderInjurySite();
